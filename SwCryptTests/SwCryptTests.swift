@@ -163,6 +163,61 @@ class SwCryptTest: XCTestCase {
             XCTAssert(pubKey == genPubKey)
     }
 
+	func testAES() {
+		do {
+			let testData = "This is the first test string. This is the second test string.".data(using: String.Encoding.utf8)!
+			let testKey = "My-Random-32ByteAESEncryptionKey".data(using: .utf8)!
+			var testIV: [UInt8] = Array(repeating: 0, count: 16)
+			arc4random_buf(&testIV, 16)
+			let ivData = Data(testIV)
+			let encryptedData = ivData + (try CC.crypt(.encrypt, algorithm: .aes, data: testData, key: testKey, iv: ivData))
+			let decryptedData = try CC.crypt(.decrypt, algorithm: .aes, data: encryptedData.suffix(from: 16), key: testKey, iv: encryptedData.prefix(through: 15))
+			print(String(data: decryptedData, encoding: .ascii) ?? "Conversion error")
+			XCTAssert(decryptedData.elementsEqual(testData))
+		} catch {
+			print(error)
+			XCTFail()
+		}
+	}
+	
+	func testAESWithMode() {
+		do {
+			let testData = "This is the first test string. This is the second test string.".data(using: String.Encoding.utf8)!
+			let testKey = "My-Random-32ByteAESEncryptionKey".data(using: .utf8)!
+			var testIV: [UInt8] = Array(repeating: 0, count: 16)
+			arc4random_buf(&testIV, 16)
+			let ivData = Data(testIV)
+			let encryptedData = ivData + (try CC.crypt(.encrypt, blockMode: .cbc, algorithm: .aes, padding: .pkcs7Padding, data: testData, key: testKey, iv: ivData))
+			let decryptedData = try CC.crypt(.decrypt, blockMode: .cbc, algorithm: .aes, padding: .pkcs7Padding, data: encryptedData.suffix(from: 16), key: testKey, iv: encryptedData.prefix(through: 15))
+			print(String(data: decryptedData, encoding: .ascii) ?? "Conversion error")
+			XCTAssert(decryptedData.elementsEqual(testData))
+		} catch {
+			print(error)
+			XCTFail()
+		}
+	}
+	
+	func testEncryptDecryptKeyRSA() {
+		let aesKey = "My-Random-32ByteAESEncryptionKey".data(using: String.Encoding.utf8)!
+		let bundle = Bundle(for: type(of: self))
+		let pubKey = bundle.object(forInfoDictionaryKey: "testPubPEM") as! String
+		let privKey = bundle.object(forInfoDictionaryKey: "testPrivPEM") as! String
+		do {
+			let e = try CC.RSA.encrypt(aesKey, derKey: SwKeyConvert.PublicKey.pemToPKCS1DER(pubKey), tag: Data(), padding: .pkcs1, digest: .none)
+			try e.write(to: URL(fileURLWithPath: "/Users/ilya/Desktop/RSAKey.dat"))
+			print("Encrypted:\n\(e)\n")
+			if let d = try? CC.RSA.decrypt(e, derKey: SwKeyConvert.PublicKey.pemToPKCS1DER(privKey), tag: Data(), padding: .pkcs1, digest: .none) {
+				if let dStr = String(data: d.0, encoding: .utf8) {
+					print("Decrypted:\n\(dStr)\n\n")
+					XCTAssert(aesKey == d.0)
+				}
+			}
+		} catch {
+			print(error)
+		}
+		XCTFail()
+	}
+	
 	func testEncryptDecryptPKCS1() {
 		let (priv, pub) = keyPair!
 
