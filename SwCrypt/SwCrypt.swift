@@ -721,6 +721,53 @@ open class CC {
 		case noPadding = 0, pkcs7Padding
 	}
 
+	public static func crypt(_ opMode: OpMode,
+							 algorithm: Algorithm,
+							 data: Data, key: Data, iv: Data) throws -> Data {
+		guard iv.count == algorithm.blockSize else { throw CCError(.paramError) }
+		
+		var cryptor: CCCryptorRef? = nil
+		var status = withUnsafePointers(iv, key, { ivBytes, keyBytes in
+			return CCCryptorCreate!(
+				opMode.rawValue,
+				algorithm.rawValue, UInt32(1),
+				keyBytes, key.count,
+				ivBytes, &cryptor)
+		})
+		
+		guard status == noErr else { throw CCError(status) }
+		
+		defer { _ = CCCryptorRelease!(cryptor!) }
+		
+		let needed = CCCryptorGetOutputLength!(cryptor!, data.count, true)
+		var result = Data(count: needed)
+		let rescount = result.count
+		var updateLen: size_t = 0
+		status = withUnsafePointers(data, &result, { dataBytes, resultBytes in
+			return CCCryptorUpdate!(
+				cryptor!,
+				dataBytes, data.count,
+				resultBytes, rescount,
+				&updateLen)
+		})
+		guard status == noErr else { throw CCError(status) }
+		
+		
+		var finalLen: size_t = updateLen
+		status = result.withUnsafeMutableBytes { resultBytes in
+			return CCCryptorFinal!(
+				cryptor!,
+				resultBytes + updateLen,
+				rescount - updateLen,
+				&finalLen)
+		}
+		guard status == noErr else { throw CCError(status) }
+		
+		
+		result.count = updateLen + finalLen
+		return result
+	}
+
 	public static func crypt(_ opMode: OpMode, blockMode: BlockMode,
 							algorithm: Algorithm, padding: Padding,
 							data: Data, key: Data, iv: Data) throws -> Data {
@@ -856,6 +903,14 @@ open class CC {
 		_ data: UnsafeRawPointer,
 		_ dataLength: Int,
 		_ macOut: UnsafeMutableRawPointer) -> Void
+	fileprivate typealias CCCryptorCreateT = @convention(c)(
+		_ op: CCOperation,
+		_ alg: CCAlgorithm,
+		_ options: CCModeOptions,
+		_ key: UnsafeRawPointer,
+		_ keyLength: Int,
+		_ iv: UnsafeRawPointer?,
+		_ cryptorRef: UnsafeMutablePointer<CCCryptorRef?>) -> CCCryptorStatus
 	fileprivate typealias CCCryptorCreateWithModeT = @convention(c)(
 		_ op: CCOperation,
 		_ mode: CCMode,
@@ -893,6 +948,8 @@ open class CC {
 		getFunc(dl!, f: "CCDigestGetOutputSize")
 	fileprivate static let CCDigest: CCDigestT? = getFunc(dl!, f: "CCDigest")
 	fileprivate static let CCHmac: CCHmacT? = getFunc(dl!, f: "CCHmac")
+	fileprivate static let CCCryptorCreate: CCCryptorCreateT? =
+		getFunc(dl!, f: "CCCryptorCreate")
 	fileprivate static let CCCryptorCreateWithMode: CCCryptorCreateWithModeT? =
 		getFunc(dl!, f: "CCCryptorCreateWithMode")
 	fileprivate static let CCCryptorGetOutputLength: CCCryptorGetOutputLengthT? =
