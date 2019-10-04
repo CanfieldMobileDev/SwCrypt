@@ -178,7 +178,7 @@ open class PKCS8 {
 
 	open class PrivateKey {
 
-		//https://lapo.it/asn1js/
+		// https://lapo.it/asn1js/
 		public static func getPKCS1DEROffset(_ derKey: Data) -> Int? {
 			let bytes = derKey.bytesView
 
@@ -199,7 +199,7 @@ open class PKCS8 {
 
 			offset += 3
 
-			//without PKCS8 header
+			// without PKCS8 header
 			guard bytes.length > offset else { return nil }
 			if bytes[offset] == 0x02 {
 				return 0
@@ -278,7 +278,7 @@ open class PKCS8 {
 			return result
 		}
 
-		//https://lapo.it/asn1js/
+		// https://lapo.it/asn1js/
 		public static func getPKCS1DEROffset(_ derKey: Data) -> Int? {
 			let bytes = derKey.bytesView
 
@@ -294,7 +294,7 @@ open class PKCS8 {
 			}
 			offset += 1
 
-			//without PKCS8 header
+			// without PKCS8 header
 			guard bytes.length > offset else { return nil }
 			if bytes[offset] == 0x02 {
 				return 0
@@ -445,6 +445,7 @@ open class PEM {
 		}
 	}
 
+	// OpenSSL PKCS#1 compatible encrypted private key
 	open class EncryptedPrivateKey {
 
 		public enum EncMode {
@@ -523,7 +524,7 @@ open class PEM {
 		}
 
 		fileprivate static func getAES128Key(_ passphrase: String, iv: Data) -> Data {
-			//128bit_Key = MD5(Passphrase + Salt)
+			// 128bit_Key = MD5(Passphrase + Salt)
 			let pass = passphrase.data(using: String.Encoding.utf8)!
 			let salt = iv.subdata(in: 0..<8)
 
@@ -533,8 +534,8 @@ open class PEM {
 		}
 
 		fileprivate static func getAES256Key(_ passphrase: String, iv: Data) -> Data {
-			//128bit_Key = MD5(Passphrase + Salt)
-			//256bit_Key = 128bit_Key + MD5(128bit_Key + Passphrase + Salt)
+			// 128bit_Key = MD5(Passphrase + Salt)
+			// 256bit_Key = 128bit_Key + MD5(128bit_Key + Passphrase + Salt)
 			let pass = passphrase.data(using: String.Encoding.utf8)!
 			let salt = iv.subdata(in: 0 ..< 8)
 
@@ -818,8 +819,8 @@ open class CC {
 		return result
 	}
 
-	//The same behaviour as in the CCM pdf
-	//http://csrc.nist.gov/publications/nistpubs/800-38C/SP800-38C_updated-July20_2007.pdf
+	// The same behaviour as in the CCM pdf
+	// http://csrc.nist.gov/publications/nistpubs/800-38C/SP800-38C_updated-July20_2007.pdf
 	public static func cryptAuth(_ opMode: OpMode, blockMode: AuthBlockMode, algorithm: Algorithm,
 								 data: Data, aData: Data,
 								 key: Data, iv: Data, tagLength: Int) throws -> Data {
@@ -1402,7 +1403,7 @@ open class CC {
 
 			let zeroBits = 8 * emLength - emBits
 			maskedDB.withUnsafeMutableBytes { maskedDBBytes in
-				maskedDBBytes[0] &= UInt8(0xff >> zeroBits)
+				maskedDBBytes[0] &= 0xff >> UInt8(zeroBits)
 			}
 
 			var ret = maskedDB
@@ -1448,7 +1449,7 @@ open class CC {
 			let dbMask = mgf1(digest, seed: mPrimeHash, maskLength: emLength - hash.count - 1)
 			var db = xorData(maskedDB, dbMask)
 			db.withUnsafeMutableBytes { dbBytes in
-				dbBytes[0] &= UInt8(0xff >> zeroBits)
+				dbBytes[0] &= 0xff >> UInt8(zeroBits)
 			}
 
 			let zeroLength = emLength - hash.count - saltLength - 2
@@ -1596,7 +1597,7 @@ open class CC {
 			case rfc2409Group2
 		}
 
-		//this is stateful in CommonCrypto too, sry
+		// this is stateful in CommonCrypto too, sry
 		open class DH {
 			fileprivate var ref: CCDHRef? = nil
 
